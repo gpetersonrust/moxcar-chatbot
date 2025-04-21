@@ -1,0 +1,31 @@
+{
+    "name": "ginopeterson/moxcar-chatbot",
+    "description": "Moxcar Chatbot integration",
+    "type": "wordpress-plugin",
+    "require": {
+      "php": "^7.4 || ^8.0"
+    },
+    "autoload": {
+      "psr-4": {
+        "Ginopeterson\\MoxcarChatbot\\": "src/"
+      }
+    },
+    "authors": [
+      {
+        "name": "Gino Peterson",
+        "email": "you@example.com"
+      }
+    ],
+  
+     "config": {
+      "secure-http": true,
+      "cafile": "/opt/homebrew/etc/openssl@3/cert.pem"
+    },
+    "repositories": {
+      "packagist": {
+        "type": "composer",
+        "url": "https://repo.packagist.org"
+      }
+    }
+  }
+  

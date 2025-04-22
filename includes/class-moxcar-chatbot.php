@@ -66,13 +66,18 @@ class Moxcar_Chatbot {
 	 *
 	 * @since    1.0.0
 	 */
-	public function __construct() {
+	public function __construct($args) {
 		if ( defined( 'MOXCAR_CHATBOT_VERSION' ) ) {
 			$this->version = MOXCAR_CHATBOT_VERSION;
 		} else {
 			$this->version = '1.0.0';
 		}
 		$this->plugin_name = 'moxcar-chatbot';
+		
+		$this->vector_store = $args['vector_store']; // Instance of Moxcar_Chatbot_VectorStore
+		$this->vector_store_id = $args['vector_store_id']; // ID of the vector store
+		$this->api_key = $args['api_key']; // Open
+		$this->vector_store_name = $args['vector_store_name']; // Name of the vector store
 
 		$this->load_dependencies();
 		$this->set_locale();
@@ -126,10 +131,29 @@ class Moxcar_Chatbot {
 		 * The class responsible for defining admin pages for the plugin.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-moxcar-chatbot-admin-pages.php';
+		/**
+		 * The class responsible for defining API functionality of the plugin.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-moxcar-chatbot-api.php';
 		
 		$this->loader = new Moxcar_Chatbot_Loader();
 	    $this->register_admin_pages();
+		$this->register_api_routes();
 	}
+
+
+
+	/**
+	 * Register the API routes for the plugin.
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 */
+	private function register_api_routes() {
+		$api = new Moxcar_Chatbot_API($this->vector_store, $this->vector_store_id);
+		$this->loader->add_action( 'rest_api_init', $api, 'register_routes' );
+	}
+
 
 
 	/**

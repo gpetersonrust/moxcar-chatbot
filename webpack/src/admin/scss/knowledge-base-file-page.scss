@@ -1,0 +1,145 @@
+// styles.scss - SCSS version of the admin file list UI
+
+:root {
+    --wp-bg: #f1f1f1;
+    --wp-white: #ffffff;
+    --wp-gray-100: #f9f9f9;
+    --wp-gray-300: #e0e0e0;
+    --wp-gray-700: #555d66;
+    --wp-gray-800: #32373c;
+    --wp-blue: #007cba;
+    --wp-light-blue: #e5f4fa;
+    --wp-border: #ccd0d4;
+    --wp-red: #b32d2e;
+  }
+  
+ 
+  
+  .moxcar_chatbot_container {
+    max-width: 480px;
+    background: var(--wp-white);
+    margin: auto;
+    padding: 1rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    position: relative;
+  
+    .drop-overlay {
+      position: absolute;
+      inset: 0;
+      border: 2px dashed var(--wp-blue);
+      border-radius: 1rem;
+      background: rgba(0, 124, 186, 0.05);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: var(--wp-blue);
+      pointer-events: none;
+      z-index: 10;
+  
+      &.active {
+        display: flex;
+      }
+    }
+  
+    .moxcar_chatbot_header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+  
+      h2 {
+        font-size: 1.4rem;
+        margin: 0;
+        color: var(--wp-gray-800);
+      }
+    }
+  
+    .moxcar_chatbot_file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+  
+      .moxcar_chatbot_file-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: var(--wp-gray-100);
+        border-radius: 0.75rem;
+        border: 1px solid var(--wp-border);
+        position: relative;
+  
+        .moxcar_chatbot_file-info {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+  
+          .moxcar_chatbot_file-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.75rem;
+            background: var(--wp-light-blue);
+            color: var(--wp-blue);
+          }
+  
+          .moxcar_chatbot_file-text {
+            display: flex;
+            flex-direction: column;
+  
+            .moxcar_chatbot_file-name {
+              font-weight: 600;
+              color: var(--wp-gray-800);
+            }
+  
+            .moxcar_chatbot_file-meta {
+              font-size: 0.75rem;
+              color: var(--wp-gray-700);
+            }
+          }
+        }
+  
+        .moxcar_chatbot_file-actions {
+          cursor: pointer;
+          font-size: 1.2rem;
+          color: var(--wp-gray-700);
+          position: relative;
+  
+          &.open .moxcar_chatbot_file-actions-menu {
+            display: block;
+          }
+  
+          .moxcar_chatbot_file-actions-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: var(--wp-white);
+            border: 1px solid var(--wp-border);
+            border-radius: 6px;
+            margin-top: 0.25rem;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            z-index: 5;
+  
+            button {
+              display: block;
+              padding: 0.5rem 1rem;
+              width: 100%;
+              background: none;
+              border: none;
+              text-align: left;
+              font-size: 0.85rem;
+              color: var(--wp-red);
+              cursor: pointer;
+            }
+          }
+        }
+      }
+    }
+  }
+  

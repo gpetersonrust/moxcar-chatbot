@@ -99,8 +99,15 @@ function run_moxcar_chatbot() {
 
 	$vector_store = new Moxcar_Chatbot_VectorStore( MOXCAR_CHATBOT_OPENAI_API_KEY );
 	$vector_store_id = $vector_store->get_or_create_vector_store_id_by_name( MOXCAR_CHATBOT_VECTOR_STORE_NAME );
- 	 
-	$plugin = new Moxcar_Chatbot();
+
+
+    $plugin = new Moxcar_Chatbot([
+		'vector_store' => $vector_store,
+		'vector_store_id' => $vector_store_id,
+		'api_key' => MOXCAR_CHATBOT_OPENAI_API_KEY,
+		'vector_store_name' => MOXCAR_CHATBOT_VECTOR_STORE_NAME,
+		
+	]);
 	$plugin->run();
 
 }

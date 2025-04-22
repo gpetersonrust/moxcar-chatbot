@@ -83,6 +83,8 @@ class Moxcar_Chatbot_Admin {
  
 		wp_enqueue_style( $this->plugin_name, $admin_css, array(), $this->version, 'all' );
 
+
+
 	}
 
 	/**
@@ -106,6 +108,12 @@ class Moxcar_Chatbot_Admin {
 
 		$admin_js = $this->admin_url . 'chatbot-admin' . $this->wp_hash . '.js';
 		wp_enqueue_script( $this->plugin_name, $admin_js, array( 'jquery' ), $this->version, false );
+
+
+		wp_localize_script( $this->plugin_name, 'moxcarChatbotApi', [
+			'apiUrl' => rest_url( 'moxcar-chatbot/v1' ),
+			'nonce'  => wp_create_nonce( 'wp_rest' ),
+		] );
 
 	}
 

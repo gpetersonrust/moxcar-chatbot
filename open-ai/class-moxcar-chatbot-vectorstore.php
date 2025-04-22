@@ -2,61 +2,159 @@
 /**
  * Class Moxcar_Chatbot_VectorStore
  *
- * Handles OpenAI Vector Store management via raw HTTP.
+ * Handles OpenAI Vector Store management and file uploads via raw HTTP.
  *
  * @package Moxcar_Chatbot
- * @plugin Moxcar Chatbot
+ * @plugin  Moxcar Chatbot
  */
 
 defined( 'ABSPATH' ) || exit;
 
 class Moxcar_Chatbot_VectorStore {
 
+	/**
+	 * OpenAI API key.
+	 *
+	 * @var string
+	 */
 	protected $api_key;
+
+	/**
+	 * Base URL for vector stores.
+	 *
+	 * @var string
+	 */
 	protected $api_base = 'https://api.openai.com/v1/vector_stores';
 
+	/**
+	 * Constructor.
+	 *
+	 * @param string $api_key Your OpenAI API key.
+	 */
 	public function __construct( $api_key ) {
 		$this->api_key = $api_key;
 	}
 
-	protected function request( $method, $url, $body = [] ) {
-		$headers = [
+	/**
+	 * Internal HTTP request handler.
+	 *
+	 * Automatically switches between JSON and multipart form-data based on body contents.
+	 *
+	 * @param string    $method  HTTP method (GET, POST, DELETE).
+	 * @param string    $url     Full endpoint URL.
+	 * @param array     $body    Request payload.
+	 * @param string[]  $headers Additional headers.
+	 *
+	 * @return array|WP_Error    Decoded response array or WP_Error on failure.
+	 */
+	protected function request( $method, $url, $body = [], $headers = [] ) {
+		// Merge default auth header.
+		$default_headers = [
 			'Authorization: Bearer ' . $this->api_key,
-			'Content-Type: application/json',
-			'OpenAI-Beta: assistants=v2',
 		];
+		$headers = array_merge( $default_headers, $headers );
 
 		$ch = curl_init();
-
 		curl_setopt( $ch, CURLOPT_URL, $url );
-		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
+		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, $method );
 		curl_setopt( $ch, CURLOPT_HTTPHEADER, $headers );
 
 		if ( ! empty( $body ) ) {
-			curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $body ) );
+			// Detect file uploads.
+			$has_file = false;
+			foreach ( $body as $v ) {
+				if ( $v instanceof CURLFile ) {
+					$has_file = true;
+					break;
+				}
+			}
+
+			if ( $has_file ) {
+				// Multipart form-data; let cURL set the boundary header.
+				curl_setopt( $ch, CURLOPT_POSTFIELDS, $body );
+			} else {
+				// JSON payload.
+				$headers[] = 'Content-Type: application/json';
+				curl_setopt( $ch, CURLOPT_HTTPHEADER, $headers );
+				curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $body ) );
+			}
 		}
 
-		$response = curl_exec( $ch );
-		$code     = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+		$response  = curl_exec( $ch );
+		$http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
 		curl_close( $ch );
 
-		if ( $code >= 200 && $code < 300 ) {
+		if ( $http_code >= 200 && $http_code < 300 ) {
 			return json_decode( $response, true );
 		}
 
-		return new WP_Error( 'openai_request_failed', 'OpenAI API request failed: ' . $response );
+		return new WP_Error( 'openai_api_error', 'API request failed: ' . $response );
 	}
 
-	public function create_vector_store( $name = 'Moxcar KB', $file_ids = [] ) {
-		$url  = $this->api_base;
+	/**
+	 * Search a vector store.
+	 *
+	 * @param string $vector_store_id The store ID.
+	 * @param string $query           Text query.
+	 * @param int    $max_results     Maximum results to return.
+	 *
+	 * @return array|WP_Error
+	 */
+	public function search( $vector_store_id, $query, $max_results = 5 ) {
+		$url  = "{$this->api_base}/{$vector_store_id}/search";
 		$body = [
-			'name'     => $name,
-			'file_ids' => $file_ids,
+			'query'           => $query,
+			'max_num_results' => $max_results,
+			'rewrite_query'   => false,
 		];
 		return $this->request( 'POST', $url, $body );
 	}
 
+	/**
+	 * Get or create a vector store by name.
+	 *
+	 * @param string $target_name Name of the store.
+	 * @param array  $file_ids    Optional file IDs to attach on creation.
+	 *
+	 * @return string|WP_Error
+	 */
+	public function get_or_create_vector_store_id_by_name( $target_name, $file_ids = [] ) {
+		$url      = $this->api_base . '?limit=100';
+		$response = $this->request( 'GET', $url );
+
+		if ( is_wp_error( $response ) || empty( $response['data'] ) ) {
+			return new WP_Error( 'vectorstore_list_error', 'Failed to retrieve vector store list.' );
+		}
+
+		foreach ( $response['data'] as $store ) {
+			if ( isset( $store['name'] ) && $store['name'] === $target_name ) {
+				return $store['id'];
+			}
+		}
+
+		// Create a new store if none found.
+		$body   = [
+			'name'     => $target_name,
+			'file_ids' => $file_ids,
+		];
+		$create = $this->request( 'POST', $this->api_base, $body );
+
+		if ( is_wp_error( $create ) || empty( $create['id'] ) ) {
+			return new WP_Error( 'vectorstore_create_error', 'Failed to create vector store.' );
+		}
+
+		return $create['id'];
+	}
+
+	/**
+	 * Add files to an existing vector store.
+	 *
+	 * @param string $vector_store_id Store ID.
+	 * @param array  $file_ids        Array of file IDs.
+	 *
+	 * @return array|WP_Error
+	 */
 	public function add_files_to_vector_store( $vector_store_id, $file_ids ) {
 		$url  = "{$this->api_base}/{$vector_store_id}/file_batches";
 		$body = [
@@ -72,56 +170,31 @@ class Moxcar_Chatbot_VectorStore {
 		return $this->request( 'POST', $url, $body );
 	}
 
-	public function search( $vector_store_id, $query, $max_results = 5 ) {
-		$url  = "{$this->api_base}/{$vector_store_id}/search";
-		$body = [
-			'query'           => $query,
-			'max_num_results' => $max_results,
-			'rewrite_query'   => false,
-		];
-		return $this->request( 'POST', $url, $body );
-	}
-
 	/**
-	 * Retrieves the ID of a vector store by its name or creates a new one if it doesn't exist.
+	 * Upload a file to OpenAI's Files API.
 	 *
-	 * This method first attempts to fetch a list of existing vector stores from the API.
-	 * If a store with the specified name (`$target_name`) is found, its ID is returned.
-	 * If no matching store is found, a new vector store is created using the `create_vector_store` method,
-	 * and the ID of the newly created store is returned.
+	 * @param array $file The $_FILES['file'] array.
 	 *
-	 * @param string $target_name The name of the vector store to retrieve or create.
-	 * @param array  $file_ids    Optional. An array of file IDs to associate with the vector store during creation.
-	 *                            Defaults to an empty array.
-	 *
-	 * @return string|WP_Error The ID of the vector store if successful, or a WP_Error object on failure.
-	 *
-	 * @throws WP_Error If the API request to retrieve the vector store list fails or if the creation of a new
-	 *                  vector store fails.
+	 * @return array|WP_Error
 	 */
-	public function get_or_create_vector_store_id_by_name( $target_name, $file_ids = [] ) {
-		$url      = $this->api_base . '?limit=100'; // Fetch up to 100 stores
-		$response = $this->request( 'GET', $url ); // Get the list of vector stores
-      
-		if ( is_wp_error( $response ) || empty( $response['data'] ) ) { // Check for errors
-			return new WP_Error( 'vectorstore_list_error', 'Failed to retrieve vector store list.' );
+	public function upload_file( $file ) {
+		if ( empty( $file['tmp_name'] ) || ! file_exists( $file['tmp_name'] ) ) {
+			return new WP_Error( 'invalid_file', 'The uploaded file is invalid or missing.' );
 		}
 
-		foreach ( $response['data'] as $store ) { //  
-		 
-			if ( isset( $store['name'] ) && $store['name'] === $target_name ) { // Check if the store name matches
-				return $store['id']; // Return the ID of the existing store
-			}
-		}
+		$curl_file = curl_file_create(
+			$file['tmp_name'],
+			$file['type'] ?? mime_content_type( $file['tmp_name'] ),
+			$file['name']
+		);
 
-	 
-		// If the store doesn't exist, create it
-		$create_response = $this->create_vector_store( $target_name, $file_ids ); // Create a new vector store
+		$body = [
+			'file'    => $curl_file,
+			'purpose' => 'assistants',
+		];
 
-		if ( is_wp_error( $create_response ) || empty( $create_response['id'] ) ) {
-			return new WP_Error( 'vectorstore_create_error', 'Failed to create vector store.' );
-		}
-
-		return $create_response['id']; // Return the ID of the newly created store
+		// No manual Content-Type header here; cURL will handle boundary.
+		$url = 'https://api.openai.com/v1/files';
+		return $this->request( 'POST', $url, $body );
 	}
 }

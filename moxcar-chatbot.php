@@ -44,6 +44,26 @@ define( 'MOXCAR_CHATBOT_URL', plugin_dir_url( __FILE__ ) );
 // Define constants for OpenAI API Key and Vector Store Name
 define( 'MOXCAR_CHATBOT_OPENAI_API_KEY', get_option( 'openai_api_key', '' ) );
 define( 'MOXCAR_CHATBOT_VECTOR_STORE_NAME', get_option( 'vector_store_name', '' ) );
+// Define constant for OpenAI Model with a default value
+define( 'MOXCAR_CHATBOT_OPENAI_MODEL', get_option( 'open_ai_model', 'gpt-4o-mini' ) );
+
+// Retrieve assistant instructions from the database
+define( 'MOXCAR_CHATBOT_ASSISTANT_INSTRUCTIONS', get_option( 'assistant_instructions', '' ) );
+
+// Check if a thread_id exists in local storage (via cookies in PHP)
+if ( ! isset( $_COOKIE['moxcar_chatbot_thread_id'] ) ) {
+	// Generate a new thread_id
+	$thread_id = uniqid( 'thread_', true );
+
+	// Store the thread_id in a cookie (local storage equivalent in PHP)
+	setcookie( 'moxcar_chatbot_thread_id', $thread_id, 0, '/', '', false, true ); // Expires when the browser session ends, HttpOnly enabled
+} else {
+	// Retrieve the existing thread_id from the cookie
+	$thread_id = $_COOKIE['moxcar_chatbot_thread_id'];
+}
+
+// Define the thread_id constant
+define( 'MOXCAR_CHATBOT_THREAD_ID', $thread_id );
 
 // Automatically require all PHP files in the 'open-ai' folder
 $open_ai_dir = MOXCAR_CHATBOT_DIR . 'open-ai/';
@@ -100,12 +120,27 @@ function run_moxcar_chatbot() {
 	$vector_store = new Moxcar_Chatbot_VectorStore( MOXCAR_CHATBOT_OPENAI_API_KEY );
 	$vector_store_id = $vector_store->get_or_create_vector_store_id_by_name( MOXCAR_CHATBOT_VECTOR_STORE_NAME );
 
+	$moxcar_chatbot_QA = new Moxcar_Chatbot_QA([
+		'api_key' => MOXCAR_CHATBOT_OPENAI_API_KEY,
+		'vector_store_id' => $vector_store_id,
+		'open_ai_model' => MOXCAR_CHATBOT_OPENAI_MODEL,
+		'assistant_instructions' => MOXCAR_CHATBOT_ASSISTANT_INSTRUCTIONS,
+		'thread_id' => MOXCAR_CHATBOT_THREAD_ID,
+	]);
+
+	// $query = " What did Gibbs Accomplish in the season?";
+	// $results = $moxcar_chatbot_QA->retrieve_documents($query, 4 );
+
+	// print_r( $results );
 
     $plugin = new Moxcar_Chatbot([
 		'vector_store' => $vector_store,
 		'vector_store_id' => $vector_store_id,
 		'api_key' => MOXCAR_CHATBOT_OPENAI_API_KEY,
 		'vector_store_name' => MOXCAR_CHATBOT_VECTOR_STORE_NAME,
+		'open_ai_model' => MOXCAR_CHATBOT_OPENAI_MODEL,
+		'assistant_instructions' => MOXCAR_CHATBOT_ASSISTANT_INSTRUCTIONS,
+		'thread_id' => MOXCAR_CHATBOT_THREAD_ID,
 		
 	]);
 	$plugin->run();

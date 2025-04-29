@@ -197,4 +197,26 @@ class Moxcar_Chatbot_VectorStore {
 		$url = 'https://api.openai.com/v1/files';
 		return $this->request( 'POST', $url, $body );
 	}
+
+
+	/**
+ * Deletes a file from the OpenAI vector store.
+ *
+ * @param string $file_id The ID of the file to delete.
+ * @return array|WP_Error The response from the OpenAI API or a WP_Error on failure.
+ */
+public function delete_file( $vector_store_id, $file_id ) {
+	// First, delete the file from the vector store.
+	$vector_store_url = "https://api.openai.com/v1/vector_stores/{$vector_store_id}/files/{$file_id}";
+	$response = $this->request( 'DELETE', $vector_store_url );
+
+	if ( is_wp_error( $response ) ) {
+		return $response; // Return the error if the deletion from the vector store fails.
+	}
+
+	// Then, delete the file itself.
+	$file_url = "https://api.openai.com/v1/files/{$file_id}";
+	return $this->request( 'DELETE', $file_url );
+}
+
 }

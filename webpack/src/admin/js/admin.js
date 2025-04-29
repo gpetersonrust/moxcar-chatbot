@@ -75,6 +75,9 @@ async uploadFile(file) {
   
       // ✅ Upload succeeded!
       console.log(`✅ File uploaded: ${data.filename} (ID: ${data.file_id})`);
+
+      // reload page 
+      window.location.reload();
   
       // Optional: here you could dynamically add the new file to the UI
       // without needing a page refresh
@@ -93,8 +96,9 @@ async uploadFile(file) {
     constructor() {
       this.bindEvents();
     }
-
+  
     bindEvents() {
+      // Toggle open menus
       document.querySelectorAll('.moxcar_chatbot_file-actions').forEach(action => {
         action.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -102,26 +106,56 @@ async uploadFile(file) {
           action.classList.toggle('open');
         });
       });
-
+  
+      // Delete file buttons
       document.querySelectorAll('.moxcar_chatbot_file-actions-menu button[data-file_id]').forEach(button => {
-        button.addEventListener('click', (e) => {
+        button.addEventListener('click', async (e) => {
           e.stopPropagation();
           const fileId = button.dataset.file_id;
-          const confirmDelete = confirm('Are you sure you want to delete this file?');
-          if (confirmDelete) {
-            console.log(`File ${fileId} was deleted`);
-            this.closeAllMenus();
+          const confirmed = confirm('Are you sure you want to delete this file?');
+          if (confirmed) {
+            await this.deleteFile(fileId);
           }
         });
       });
-
+  
+      // Global click = close menus
       window.addEventListener('click', () => this.closeAllMenus());
     }
-
+  
+    async deleteFile(fileId) {
+      try {
+        const response = await fetch('/wp-json/moxcar-chatbot/v1/delete-file', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-WP-Nonce':  moxcarChatbotApi.nonce
+          },
+          body: JSON.stringify({ file_id: fileId }),
+        });
+  
+        const data = await response.json();
+  
+        if (data.success) {
+          console.log(`✅ File ${fileId} deleted.`);
+          window.location.reload();
+          // Remove from DOM
+          const el = document.querySelector(`[data-file-id="${fileId}"]`);
+          if (el) el.closest('.moxcar_chatbot_file-card').remove();
+        } else {
+          alert(`⚠️ Error deleting file: ${data.error}`);
+        }
+      } catch (err) {
+        console.error('❌ Delete request failed:', err);
+        alert('An error occurred while deleting the file.');
+      }
+    }
+  
     closeAllMenus() {
       document.querySelectorAll('.moxcar_chatbot_file-actions').forEach(el => el.classList.remove('open'));
     }
   }
+  
 
 document.addEventListener('DOMContentLoaded', () => {
     new FileUploadHandler(document.getElementById('dropzone'));

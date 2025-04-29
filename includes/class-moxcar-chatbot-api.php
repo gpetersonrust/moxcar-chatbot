@@ -51,6 +51,12 @@ class Moxcar_Chatbot_API {
             'callback' => [ $this, 'handle_upload_file_request' ],
             'permission_callback' => '__return_true',
         ] );
+
+        register_rest_route( 'moxcar-chatbot/v1', '/delete-file', [
+            'methods'             => 'DELETE',
+            'callback'            => [ $this, 'handle_delete_file_request' ],
+            'permission_callback' => '__return_true',
+        ] );
     }
 
     /**
@@ -110,7 +116,7 @@ public function handle_upload_file_request( WP_REST_Request $request ) {
 	$response = $this->vector_store->upload_file( $file );
 
   
-   print_r($response);  
+  
 	// 🛑 Check if the upload failed or didn't return a file ID
 	if ( is_wp_error( $response ) || empty( $response['id'] ) ) {
 		return new WP_REST_Response( [ 'error' => 'File upload to OpenAI failed.' ], 500 );
@@ -144,4 +150,47 @@ public function handle_upload_file_request( WP_REST_Request $request ) {
 		'filename' => $file['name'],
 	], 200 );
 }
+
+/**
+ * Handles deleting a file from the vector store and updating WordPress options.
+ *
+ * @param WP_REST_Request $request The REST API request object.
+ * @return WP_REST_Response
+ */
+public function handle_delete_file_request( WP_REST_Request $request ) {
+    // 🔐 Validate REST nonce to prevent CSRF
+    if ( ! isset( $_SERVER['HTTP_X_WP_NONCE'] ) || ! wp_verify_nonce( $_SERVER['HTTP_X_WP_NONCE'], 'wp_rest' ) ) {
+        return new WP_REST_Response( [ 'error' => 'Invalid or missing nonce.' ], 403 );
+    }
+
+    // 🆔 Retrieve the file ID from the request
+    $file_id = $request->get_param( 'file_id' );
+
+    if ( empty( $file_id ) ) {
+        return new WP_REST_Response( [ 'error' => 'Missing file ID.' ], 400 );
+    }
+
+    // 🗑️ Delete the file from OpenAI
+    $vector_store_id = $this->vector_store_id;
+    $delete_response = $this->vector_store->delete_file( $vector_store_id, $file_id );
+
+    if ( is_wp_error( $delete_response ) ) {
+        return new WP_REST_Response( [ 'error' => 'Failed to delete file from OpenAI.' ], 500 );
+    }
+
+    // 🧹 Remove the file metadata from WordPress options
+    $saved_files = get_option( 'knowledge_base_files', [] );
+    $updated_files = array_filter( $saved_files, function( $file ) use ( $file_id ) {
+        return $file['id'] !== $file_id;
+    } );
+
+    update_option( 'knowledge_base_files', $updated_files );
+
+    // ✅ Send back a success response to the client
+    return new WP_REST_Response( [
+        'success' => true,
+        'file_id' => $file_id,
+    ], 200 );
+}
+
 }

@@ -78,6 +78,7 @@ class Moxcar_Chatbot {
 		$this->vector_store_id = $args['vector_store_id']; // ID of the vector store
 		$this->api_key = $args['api_key']; // Open
 		$this->vector_store_name = $args['vector_store_name']; // Name of the vector store
+		$this->open_ai_model = $args['open_ai_model']; // OpenAI model
 
 		$this->load_dependencies();
 		$this->set_locale();
